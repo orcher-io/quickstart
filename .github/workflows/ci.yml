@@ -1,0 +1,95 @@
+name: CI
+
+# Runs every example against a real engine, exactly as the README tells a new
+# user to: start the engine with docker compose, install the example's
+# dependencies, run the worker and the starter, then kill the worker during the
+# timer and check the workflow resumes without repeating a step.
+#
+# GitHub-hosted runners only, and no secrets: pull requests from forks run
+# here too. The engine image is public, so pulling it needs no credentials; it
+# is named once, in docker-compose.yml (ORCHER_IMAGE).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Weekly, so that a new SDK or engine release that breaks the quickstart is
+  # noticed before a new user notices it. The TypeScript and Rust examples take
+  # the newest compatible SDK release on every run (no lockfile is committed).
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  example:
+    name: ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, typescript, rust]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the engine
+        run: docker compose up -d --wait
+
+      - name: Set up Python
+        if: matrix.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install the Python example
+        if: matrix.language == 'python'
+        working-directory: python
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+          echo "PYTHON=$PWD/.venv/bin/python" >> "$GITHUB_ENV"
+
+      - name: Set up Node.js
+        if: matrix.language == 'typescript'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install and build the TypeScript example
+        if: matrix.language == 'typescript'
+        working-directory: typescript
+        run: |
+          npm install
+          npm run build
+
+      - name: Set up Rust
+        if: matrix.language == 'rust'
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust builds
+        if: matrix.language == 'rust'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: Build the Rust example
+        if: matrix.language == 'rust'
+        working-directory: rust
+        run: cargo build --bins
+
+      - name: Run the example
+        run: scripts/run-example.sh ${{ matrix.language }}
+
+      - name: Kill the worker mid-run and check it resumes
+        run: scripts/kill-and-resume.sh ${{ matrix.language }}
+
+      - name: Engine logs
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop the engine
+        if: always()
+        run: docker compose down -v

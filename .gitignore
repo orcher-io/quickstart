@@ -1,0 +1,15 @@
+# Dependencies and build output
+python/.venv/
+__pycache__/
+typescript/node_modules/
+typescript/dist/
+rust/target/
+
+# Lockfiles are deliberately not committed: the examples take the newest SDK
+# release in their pinned range, so the weekly CI run tests what a new user
+# installs today.
+typescript/package-lock.json
+rust/Cargo.lock
+
+.env
+.DS_Store

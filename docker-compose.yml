@@ -1,0 +1,73 @@
+# A local ORCHER engine for development: Postgres, the schema migrations, and
+# the engine itself. Authentication is off, so any worker or client on this
+# machine can connect without an API key. Do not expose these ports publicly.
+#
+#   docker compose up -d --wait     # start, and wait until the engine is healthy
+#   docker compose down -v          # stop, and delete the database volume
+#
+# Environment variables (all optional; put them in a .env file to keep them):
+#   ORCHER_IMAGE       engine image          default ghcr.io/orcher-io/orcher:0.5.0
+#   ORCHER_GRPC_PORT   host port for gRPC    default 50051 (workers and clients)
+#   ORCHER_HTTP_PORT   host port for HTTP    default 8080  (/health/ready, /metrics)
+#   ORCHER_LOG_LEVEL   engine log level      default info
+#
+# If you change ORCHER_GRPC_PORT, point the examples at it with
+# ORCHER_URL=http://localhost:<port>.
+
+name: orcher-quickstart
+
+x-orcher-image: &orcher-image ${ORCHER_IMAGE:-ghcr.io/orcher-io/orcher:0.5.0}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orcher
+      POSTGRES_PASSWORD: orcher
+      POSTGRES_DB: orcher
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orcher -d orcher"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Applies the database schema, then exits. Safe to run on every start: it
+  # only applies migrations the database doesn't have yet.
+  migrate:
+    image: *orcher-image
+    entrypoint: ["orcher-migrate", "run"]
+    environment:
+      DATABASE_URL: postgresql://orcher:orcher@postgres:5432/orcher
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  orcher:
+    image: *orcher-image
+    environment:
+      DATABASE_URL: postgresql://orcher:orcher@postgres:5432/orcher
+      GRPC_BIND_ADDR: 0.0.0.0:50051
+      HTTP_BIND_ADDR: 0.0.0.0:8080
+      LOG_LEVEL: ${ORCHER_LOG_LEVEL:-info}
+      LOG_FORMAT: compact
+    ports:
+      - "${ORCHER_GRPC_PORT:-50051}:50051"
+      - "${ORCHER_HTTP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health/ready"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

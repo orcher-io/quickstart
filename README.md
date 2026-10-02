@@ -36,7 +36,7 @@ the order without charging it again.
 
 | Directory | What's in it |
 |-----------|--------------|
-| [`docker-compose.yml`](docker-compose.yml) | The engine, Postgres and the schema migrations |
+| [`docker-compose.yml`](docker-compose.yml) | The engine and its Postgres |
 | [`python/`](python) | The workflow in Python, a worker and a starter |
 | [`typescript/`](typescript) | The same in TypeScript |
 | [`rust/`](rust) | The same in Rust |
@@ -59,8 +59,8 @@ cd quickstart
 docker compose up -d --wait
 ```
 
-This starts Postgres, applies the engine's schema and starts the engine, with
-gRPC on `localhost:50051` and health checks on
+This starts Postgres and the engine, which applies its database schema as it
+starts, with gRPC on `localhost:50051` and health checks on
 [`localhost:8080/health/ready`](http://localhost:8080/health/ready).
 Authentication is off: this engine is for your machine only.
 
@@ -268,13 +268,21 @@ Each SDK's README covers retries, events, child workflows, actors and testing:
 ### <img height="16" src="https://octicons-col.vercel.app/container/38BDF0"> The engine image
 
 [`ghcr.io/orcher-io/orcher`](https://github.com/orgs/orcher-io/packages/container/package/orcher)
-is a free developer preview. It is free to use for development and
-evaluation; production use requires permission. The image has its own
-license, separate from this repository's; its terms are on the
-[image's package page](https://github.com/orgs/orcher-io/packages/container/package/orcher).
+is a free developer preview: free to use for development and evaluation;
+production use requires permission. The image has its own license, separate
+from this repository's. It ships in the image as `/LICENSE`, beside
+`/THIRD_PARTY_NOTICES`, which lists the open-source components built into
+the engine with their own licenses:
+
+```bash
+docker compose exec orcher cat /LICENSE
+docker compose exec orcher cat /THIRD_PARTY_NOTICES
+```
 
 To try another engine version, set `ORCHER_IMAGE`, for example
 `ORCHER_IMAGE=ghcr.io/orcher-io/orcher:<version> docker compose up -d --wait`.
+The versions are listed on the
+[package page](https://github.com/orgs/orcher-io/packages/container/package/orcher).
 
 ### <img height="16" src="https://octicons-col.vercel.app/law/38BDF0"> License
 

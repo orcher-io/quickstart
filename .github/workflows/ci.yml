@@ -3,7 +3,9 @@ name: CI
 # Runs every example against a real engine, exactly as the README tells a new
 # user to: start the engine with docker compose, install the example's
 # dependencies, run the worker and the starter, then kill the worker during the
-# timer and check the workflow resumes without repeating a step.
+# timer and check the workflow resumes without repeating a step. Then the same
+# for the AI agent: kill its worker while it waits for approval, approve, and
+# check the model was called once and the email sent once.
 #
 # GitHub-hosted runners only, and no secrets: pull requests from forks run
 # here too. The engine image is public, so pulling it needs no credentials; it
@@ -85,6 +87,9 @@ jobs:
 
       - name: Kill the worker mid-run and check it resumes
         run: scripts/kill-and-resume.sh ${{ matrix.language }}
+
+      - name: Kill the agent's worker while it waits for approval and check it resumes
+        run: scripts/agent-kill-and-resume.sh ${{ matrix.language }}
 
       - name: Engine logs
         if: failure()

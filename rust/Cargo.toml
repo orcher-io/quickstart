@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 license = "Apache-2.0"
-description = "ORCHER quickstart: an order workflow in Rust"
+description = "ORCHER quickstart: an order workflow and an AI agent in Rust"
 
 [dependencies]
 orcher-sdk = "0.5"

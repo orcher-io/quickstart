@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2034 # set here, used by the scripts that source this file
-# Shared helpers for run-example.sh and kill-and-resume.sh. Sourced, not run.
+# Shared helpers for run-example.sh, kill-and-resume.sh and
+# agent-kill-and-resume.sh. Sourced, not run.
 
 set -euo pipefail
 
@@ -14,11 +15,17 @@ case "$LANG_NAME" in
     PY="${PYTHON:-python3}"
     WORKER=("$PY" worker.py)
     STARTER=("$PY" start.py)
+    AGENT_WORKER=("$PY" agent_worker.py)
+    AGENT_STARTER=("$PY" agent_start.py)
+    AGENT_APPROVER=("$PY" agent_approve.py)
     ;;
   typescript)
     DIR="$ROOT/typescript"
     WORKER=(node dist/worker.js)
     STARTER=(node dist/start.js)
+    AGENT_WORKER=(node dist/agent-worker.js)
+    AGENT_STARTER=(node dist/agent-start.js)
+    AGENT_APPROVER=(node dist/agent-approve.js)
     ;;
   rust)
     # The binaries themselves, not `cargo run`: killing cargo would leave the
@@ -26,6 +33,9 @@ case "$LANG_NAME" in
     DIR="$ROOT/rust"
     WORKER=(target/debug/worker)
     STARTER=(target/debug/start)
+    AGENT_WORKER=(target/debug/agent-worker)
+    AGENT_STARTER=(target/debug/agent-start)
+    AGENT_APPROVER=(target/debug/agent-approve)
     ;;
   *)
     echo "usage: $0 python|typescript|rust" >&2
@@ -99,4 +109,8 @@ count() {
 
 order_id() {
   echo "order-$LANG_NAME-$(date +%s)-$RANDOM"
+}
+
+ticket_id() {
+  echo "ticket-$LANG_NAME-$(date +%s)-$RANDOM"
 }

@@ -1,7 +1,7 @@
 {
   "name": "orcher-quickstart-typescript",
   "private": true,
-  "description": "ORCHER quickstart: an order workflow in TypeScript",
+  "description": "ORCHER quickstart: an order workflow and an AI agent in TypeScript",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=22"
@@ -9,7 +9,10 @@
   "scripts": {
     "build": "tsc",
     "worker": "node dist/worker.js",
-    "start-workflow": "node dist/start.js"
+    "start-workflow": "node dist/start.js",
+    "agent-worker": "node dist/agent-worker.js",
+    "agent-start": "node dist/agent-start.js",
+    "agent-approve": "node dist/agent-approve.js"
   },
   "dependencies": {
     "@orcher/sdk": "^0.5.0"

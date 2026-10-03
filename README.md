@@ -34,10 +34,13 @@ no process has to stay up while it runs. A worker that dies mid-order is
 replaced by a new one, which picks the order up where it stopped: it ships
 the order without charging it again.
 
+Then, in step 5, an AI agent that calls a model, waits for a person to
+approve its work, and survives a crash without calling the model again.
+
 | Directory | What's in it |
 |-----------|--------------|
 | [`docker-compose.yml`](docker-compose.yml) | The engine and its Postgres |
-| [`python/`](python) | The workflow in Python, a worker and a starter |
+| [`python/`](python) | The workflows in Python, their workers and starters |
 | [`typescript/`](typescript) | The same in TypeScript |
 | [`rust/`](rust) | The same in Rust |
 | [`scripts/`](scripts) | The steps below as scripts, run by CI every week |
@@ -247,6 +250,107 @@ scripts/kill-and-resume.sh python    # or typescript, or rust
 It runs the examples from their directories, so install them first, as in
 step 2 (for Rust, `cargo build --bins`; for Python, set `PYTHON` to your
 virtualenv's interpreter if it isn't active).
+
+<br />
+
+### <img height="16" src="https://octicons-col.vercel.app/sparkle-fill/38BDF0"> 5. An AI agent that waits for approval
+
+An agent calls a model, which is slow and costs money, and often has to wait
+before it acts: for a person to approve what it is about to do. A script that
+holds all that in memory loses it when its process dies, and starting over
+means calling the model again. The `agent` workflow drafts a reply to a support
+ticket, waits for approval, then sends the reply:
+
+```
+draft_reply (model) ──▶ wait for "approve", up to 24h ──▶ send_reply (email)
+```
+
+- **The model is a fake**, so the example runs with no network and no API key:
+  `call_model` sleeps for a second and returns a canned reply. It is where a
+  real LLM call goes. It prints `model called` every time it is called.
+- **The model task has a retry policy**: up to five attempts, with exponential
+  backoff. For the demo, the first request each worker makes is rate-limited,
+  so you see the engine retry it.
+- **The wait is durable**: the engine keeps it, and its 24-hour deadline is a
+  durable timer. If nobody approves in time, the agent finishes without
+  sending anything.
+
+| Language | Worker | Starter | Approver |
+|----------|--------|---------|----------|
+| Python | [`agent_worker.py`](python/agent_worker.py) | [`agent_start.py`](python/agent_start.py) | [`agent_approve.py`](python/agent_approve.py) |
+| TypeScript | [`agent-worker.ts`](typescript/src/agent-worker.ts) | [`agent-start.ts`](typescript/src/agent-start.ts) | [`agent-approve.ts`](typescript/src/agent-approve.ts) |
+| Rust | [`agent-worker.rs`](rust/src/bin/agent-worker.rs) | [`agent-start.rs`](rust/src/bin/agent-start.rs) | [`agent-approve.rs`](rust/src/bin/agent-approve.rs) |
+
+The workflow, from [`agent_worker.py`](python/agent_worker.py):
+
+```python
+@workflow(name="agent")
+async def agent(ctx: WorkflowContext, ticket_id: str) -> str:
+    draft = await ctx.execute_task(draft_reply, ticket_id=ticket_id)
+    # Wait for a person to approve the draft. The engine keeps the wait and its
+    # 24-hour deadline (a durable timer), so no worker has to stay up for it.
+    try:
+        reviewer = await ctx.wait_for_event_with_timeout("approve", timedelta(hours=24))
+    except TimeoutError:
+        return f"no approval for {ticket_id} within 24 hours; the reply was not sent"
+    sent = await ctx.execute_task(send_reply, ticket_id=ticket_id, reply=draft)
+    return f"{sent}, approved by {reviewer}"
+```
+
+Run it from your language's directory, installed as in step 2 (for
+TypeScript, `npm run build` again if you built before this example existed):
+
+1. Start the agent's worker, and leave it running:
+
+   ```bash
+   python agent_worker.py              # Python
+   npm run agent-worker                # TypeScript
+   cargo run --bin agent-worker        # Rust
+   ```
+
+2. In a second terminal, start an agent:
+
+   ```bash
+   python agent_start.py               # Python
+   npm run agent-start                 # TypeScript
+   cargo run --bin agent-start         # Rust
+   ```
+
+   The worker prints `model rate-limited: …`, then, after the retry,
+   `model called (call #1 in this worker): draft a reply to ticket-…`. The
+   agent now waits for approval, and the starter prints the command that
+   gives it.
+3. Stop the worker with <kbd>Ctrl</kbd>+<kbd>C</kbd>, or kill it outright, and
+   start it again, as in 1.
+4. In a third terminal, approve, with the ticket id the starter printed:
+
+   ```bash
+   python agent_approve.py ticket-…                # Python
+   npm run agent-approve -- ticket-…               # TypeScript
+   cargo run --bin agent-approve -- ticket-…       # Rust
+   ```
+
+5. The new worker prints `email sent for ticket-…`, and the starter prints the
+   result:
+
+   ```
+   result: sent the reply to ticket-3f9c1a7e, approved by reviewer
+   ```
+
+What to watch for: the new worker never prints `model called`. The engine
+recorded the draft when the model task finished, so the agent resumes after
+it, and sends the reply the first worker drafted: one model call and one email
+across two worker processes. The draft is recorded once the task has
+returned it; a worker killed in the middle of the model call has no draft to
+keep, and the engine runs the task again.
+
+[`scripts/agent-kill-and-resume.sh`](scripts/agent-kill-and-resume.sh) does
+the same with `kill -9`, and fails unless the model was called exactly once,
+by the first worker, and the email sent exactly once, by the second:
+
+```bash
+scripts/agent-kill-and-resume.sh python    # or typescript, or rust
+```
 
 When you're done, `docker compose down -v` stops the engine and deletes its
 data.

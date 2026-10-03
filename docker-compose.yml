@@ -8,7 +8,7 @@
 #   docker compose down -v          # stop, and delete the database volume
 #
 # Environment variables (all optional; put them in a .env file to keep them):
-#   ORCHER_IMAGE       engine image          default ghcr.io/orcher-io/orcher:0.5.1
+#   ORCHER_IMAGE       engine image          default ghcr.io/orcher-io/orcher:0.5.2
 #   ORCHER_GRPC_PORT   host port for gRPC    default 50051 (workers and clients)
 #   ORCHER_HTTP_PORT   host port for HTTP    default 8080  (/health/ready, /metrics)
 #   ORCHER_LOG_LEVEL   engine log level      default info
@@ -36,7 +36,7 @@ services:
       retries: 30
 
   orcher:
-    image: ${ORCHER_IMAGE:-ghcr.io/orcher-io/orcher:0.5.1}
+    image: ${ORCHER_IMAGE:-ghcr.io/orcher-io/orcher:0.5.2}
     environment:
       DATABASE_URL: postgresql://orcher:orcher@postgres:5432/orcher
       GRPC_BIND_ADDR: 0.0.0.0:50051

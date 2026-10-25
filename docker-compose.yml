@@ -1,8 +1,9 @@
 # A local ORCHER engine for development: Postgres and the engine. The engine
 # applies its schema migrations to the database every time it starts (only
 # the ones the database doesn't have yet), then serves. Authentication is off,
-# so any worker or client on this machine can connect without an API key. Do
-# not expose these ports publicly.
+# so any worker or client on this machine can connect without an API key; the
+# ports are published on this machine's loopback only, so nothing else can.
+# To serve other machines, turn authentication on instead.
 #
 #   docker compose up -d --wait     # start, and wait until the engine is healthy
 #   docker compose down -v          # stop, and delete the database volume
@@ -43,9 +44,14 @@ services:
       HTTP_BIND_ADDR: 0.0.0.0:8080
       LOG_LEVEL: ${ORCHER_LOG_LEVEL:-info}
       LOG_FORMAT: compact
+      # The engine listens on every interface inside its container and cannot
+      # see that the ports below reach only this machine, so with
+      # authentication off it starts only when told an open API is intended.
+      # Older engines ignore this.
+      ORCHER_INSECURE: "true"
     ports:
-      - "${ORCHER_GRPC_PORT:-50051}:50051"
-      - "${ORCHER_HTTP_PORT:-8080}:8080"
+      - "127.0.0.1:${ORCHER_GRPC_PORT:-50051}:50051"
+      - "127.0.0.1:${ORCHER_HTTP_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy

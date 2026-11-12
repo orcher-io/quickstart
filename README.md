@@ -372,9 +372,9 @@ Each SDK's README covers retries, events, child workflows, actors and testing:
 ### <img height="16" src="https://octicons-col.vercel.app/container/38BDF0"> The engine image
 
 [`ghcr.io/orcher-io/orcher`](https://github.com/orgs/orcher-io/packages/container/package/orcher)
-is a free developer preview: free to use for development and evaluation;
-production use requires permission. The image has its own license, separate
-from this repository's. It ships in the image as `/LICENSE`, beside
+is the engine, open source under the Apache License 2.0
+([orcher-io/orcher](https://github.com/orcher-io/orcher)). Its license ships
+in the image as `/LICENSE`, beside
 `/THIRD_PARTY_NOTICES`, which lists the open-source components built into
 the engine with their own licenses:
 
@@ -391,5 +391,4 @@ The versions are listed on the
 ### <img height="16" src="https://octicons-col.vercel.app/law/38BDF0"> License
 
 The code in this repository is licensed under the
-[Apache License, Version 2.0](LICENSE). The engine image is not covered by it:
-it has its own license, described above.
+[Apache License, Version 2.0](LICENSE), as is the engine, from its 0.7.0 image on.

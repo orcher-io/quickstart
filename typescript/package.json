@@ -15,7 +15,7 @@
     "agent-approve": "node dist/agent-approve.js"
   },
   "dependencies": {
-    "@orcher/sdk": "^0.5.2"
+    "@orcher/sdk": "^0.5.21"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
